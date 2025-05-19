@@ -37,6 +37,11 @@ globals[
   %num-familyback
   %num-motivation
   mean-ecosystem-entrepreneurial-knowledge
+  motivation-history-students
+  motivation-history-teachers
+  motivation-history-entrepreneurs
+  motivation-history-investors
+  entrepreneurs-history
 ]
 
 patches-own [
@@ -89,6 +94,7 @@ individuals-own [
   initial-entrepreneurial-knowledge
   mean-entrepreneurial-knowledge
   motivation
+  motivation-initialized?
   moving?
   entre-know-updated-cc?
   entre-know-updated-ce?
@@ -100,6 +106,7 @@ individuals-own [
   attending-extracurricular-event?
   old-xcor
   old-ycor
+  last-motivation-update-tick
 ]
 
 ;-------------------------------------------------------------------------------------------------------;
@@ -108,12 +115,12 @@ to setup
   clear-all
   set aura-size min (list world-width world-height) / 12 ;; Dimensione proporzionale al mondo
   set half-side floor (aura-size / 2)
-  set corruption-incidence 0.3
-  set burocracy-incidence 0.6
-  set perception-incidence 0.3
-  set melting-incidence 0.3
-  set access-incidence 0.6
-  set culture-incidence 0.3
+  set corruption-incidence -0.49
+  set burocracy-incidence 0.52
+  set perception-incidence 0.40
+  set melting-incidence 0.35
+  set access-incidence 0.45
+  set culture-incidence 0.50
   set %num-familyback 0.35
   set %num-motivation 0.6
 
@@ -142,6 +149,12 @@ to setup
     species = "entrepreneur" and
     mean-entrepreneurial-knowledge < mean [mean-entrepreneurial-knowledge] of individuals with [species = "entrepreneur"]
   ]
+  set motivation-history-students []
+  set motivation-history-teachers []
+  set motivation-history-entrepreneurs []
+  set motivation-history-investors []
+  set entrepreneurs-history []
+
   reset-ticks
 end
 ;-------------------------------------------------------------------------------------------------------;
@@ -154,56 +167,85 @@ to go
   extracurricular-event
   inizialization/update-entrepreneurial-culture
   replace-entrepreneurial-individuals
+ ; log-motivation
   tick
 end
 to curricular-course
-  set P-base-cc 0.17
-  let P (P-base-cc + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
-  ;show P
+  set P-base-cc 0.25
+  let P (P-base-cc
+         + perception-incidence * %perception-of-entrepreneurship
+         + melting-incidence * %melting-pot
+         + corruption-incidence * corruption
+         - burocracy-incidence * %burocracy
+         + access-incidence * access-to-credit
+         + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
 
-  ;; Assicuriamoci che la probabilità resti tra 0 e 1
-  set P max (list 0 (min (list 1 P)))
+  let P-min 0.02  ;; Probabilità minima (2%)
+  set P max (list P-min (min (list 1 P)))
+
   if random-float 1 < P [
     prepare-curricular-course
   ]
   update-curricular-course
 end
-to extracurricular-course
-  set P-base-ec 0.1
-  let P (P-base-ec + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
-  ;show P
 
-  ;; Assicuriamoci che la probabilità resti tra 0 e 1
-  set P max (list 0 (min (list 1 P)))
+to extracurricular-course
+  set P-base-ec 0.20
+  let P (P-base-ec
+         + perception-incidence * %perception-of-entrepreneurship
+         + melting-incidence * %melting-pot
+         + corruption-incidence * corruption
+         - burocracy-incidence * %burocracy
+         + access-incidence * access-to-credit
+         + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
+
+  let P-min 0.02
+  set P max (list P-min (min (list 1 P)))
+
   if random-float 1 < P [
     prepare-extracurricular-course
   ]
   update-extracurricular-course
 end
-to curricular-event
-  set P-base-ce 0.15
-  let P (P-base-ce + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
-  ; show P
 
-  ;; Assicuriamoci che la probabilità resti tra 0 e 1
-  set P max (list 0 (min (list 1 P)))
+to curricular-event
+  set P-base-ce 0.22
+  let P (P-base-ce
+         + perception-incidence * %perception-of-entrepreneurship
+         + melting-incidence * %melting-pot
+         + corruption-incidence * corruption
+         - burocracy-incidence * %burocracy
+         + access-incidence * access-to-credit
+         + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
+
+  let P-min 0.02
+  set P max (list P-min (min (list 1 P)))
+
   if random-float 1 < P [
     prepare-curricular-event
   ]
   update-curricular-event
 end
-to extracurricular-event
-  set P-base-ee 0.12
-  let P (P-base-ee + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
-  ;show P
 
-  ;; Assicuriamoci che la probabilità resti tra 0 e 1
-  set P max (list 0 (min (list 1 P)))
+to extracurricular-event
+  set P-base-ee 0.18
+  let P (P-base-ee
+         + perception-incidence * %perception-of-entrepreneurship
+         + melting-incidence * %melting-pot
+         + corruption-incidence * corruption
+         - burocracy-incidence * %burocracy
+         + access-incidence * access-to-credit
+         + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
+
+  let P-min 0.02
+  set P max (list P-min (min (list 1 P)))
+
   if random-float 1 < P [
     prepare-extracurricular-event
   ]
   update-extracurricular-event
 end
+
 ;-------------------------------------------------------------------------------------------------------;
 ;GENERATE ALL TURTLES ;
 to create-agents
@@ -302,6 +344,7 @@ to create-students
         set color red
         set species "student"
         set university-assigned university
+        set last-motivation-update-tick 0
       ]
     ] [
       create-individuals 1 [
@@ -311,6 +354,7 @@ to create-students
         set color red
         set species "student"
         set university-assigned one-of institutions with [species = "university"]
+        set last-motivation-update-tick 0
       ]
     ]
     set created created + 1
@@ -374,6 +418,7 @@ to create-teach/resea
         set color black
         set species "teacher/researcher"
         set university-assigned university
+        set last-motivation-update-tick 0
       ]
     ][
       create-individuals 1 [
@@ -383,6 +428,7 @@ to create-teach/resea
         set color black
         set species "teacher/researcher"
         set university-assigned one-of institutions with [species = "university"]
+        set last-motivation-update-tick 0
       ]
     ]
     set created created + 1
@@ -426,6 +472,7 @@ to create-entrepreneurs
         set size 1.5
         set color blue
         set species "entrepreneur"
+        set last-motivation-update-tick 0
       ]
     ] [
       create-individuals 1 [
@@ -434,6 +481,7 @@ to create-entrepreneurs
         set size 1.5
         set color blue
         set species "entrepreneur"
+        set last-motivation-update-tick 0
       ]
     ]
     set created created + 1
@@ -498,6 +546,7 @@ to create-investors
         set size 1.5
         set color brown - 1
         set species "business angel"
+        set last-motivation-update-tick 0
       ]
     ]
     set created created + 1
@@ -653,7 +702,16 @@ to inizialization/update-entrepreneurial-knowledge
     set initial-entrepreneurial-knowledge entrepreneurial-knowledge
 
     set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-    set motivation (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
+    if motivation-initialized? = 0 [
+        set motivation (mean entrepreneurial-knowledge
+                        + perception-incidence * %perception-of-entrepreneurship
+                        + melting-incidence * %melting-pot
+                        + corruption-incidence * corruption
+                        - burocracy-incidence * %burocracy
+                        - access-incidence * access-to-credit
+                        + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
+        set motivation-initialized? 1
+    ]
   ]
   ask individuals with [species = "teacher/researcher"] [
     set entrepreneurial-knowledge[]
@@ -675,8 +733,16 @@ to inizialization/update-entrepreneurial-knowledge
     set initial-entrepreneurial-knowledge entrepreneurial-knowledge
 
     set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-    set motivation (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
-
+        if motivation-initialized? = 0 [
+        set motivation (mean entrepreneurial-knowledge
+                        + perception-incidence * %perception-of-entrepreneurship
+                        + melting-incidence * %melting-pot
+                        + corruption-incidence * corruption
+                        - burocracy-incidence * %burocracy
+                        - access-incidence * access-to-credit
+                        + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
+        set motivation-initialized? 1
+    ]
   ]
   ask individuals with [species = "entrepreneur"][
     set entrepreneurial-knowledge []
@@ -699,8 +765,16 @@ to inizialization/update-entrepreneurial-knowledge
     set initial-entrepreneurial-knowledge entrepreneurial-knowledge
 
     set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-    set motivation (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
-
+        if motivation-initialized? = 0 [
+        set motivation (mean entrepreneurial-knowledge
+                        + perception-incidence * %perception-of-entrepreneurship
+                        + melting-incidence * %melting-pot
+                        + corruption-incidence * corruption
+                        - burocracy-incidence * %burocracy
+                        - access-incidence * access-to-credit
+                        + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
+        set motivation-initialized? 1
+    ]
   ]
   ask individuals with [species = "business angel"] [
     set entrepreneurial-knowledge []
@@ -722,7 +796,16 @@ to inizialization/update-entrepreneurial-knowledge
     set initial-entrepreneurial-knowledge entrepreneurial-knowledge
 
     set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-    set motivation (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
+    if motivation-initialized? = 0 [
+        set motivation (mean entrepreneurial-knowledge
+                        + perception-incidence * %perception-of-entrepreneurship
+                        + melting-incidence * %melting-pot
+                        + corruption-incidence * corruption
+                        - burocracy-incidence * %burocracy
+                        - access-incidence * access-to-credit
+                        + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
+        set motivation-initialized? 1
+    ]
   ]
 end
 to inizialization/update-entrepreneurial-culture
@@ -2132,160 +2215,155 @@ to check-position
 end
 to check-and-update-entre-know-curricular-course [current-1]
   ask current-1 [
-    if is-agentset? course-students[
+    if is-agentset? course-students [
       ask course-students [
         if (course-ticks >= (duration-cc / 2)) and (entre-know-updated-cc? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.1) 10) 2] entrepreneurial-knowledge
+          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.25) 10) 2] entrepreneurial-knowledge
           set entre-know-updated-cc? 1
           set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
+          if (ticks - last-motivation-update-tick) > 10 [
+          set motivation min (list (motivation
+                        + (perception-incidence * %perception-of-entrepreneurship)
+                        + (melting-incidence * %melting-pot)
+                        + (corruption-incidence * corruption)
+                        - (burocracy-incidence * %burocracy * (1 + 0.75 * corruption))
+                        + (access-incidence * access-to-credit * (1 - 0.40 * corruption))
+                        + (culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions * (1 - 0.30 * corruption)))) 10)
+            set last-motivation-update-tick ticks
+          ]
+          ]
         ]
       ]
-    ]
-    if is-agentset? course-teachers/researchers[
+
+    if is-agentset? course-teachers/researchers [
       ask course-teachers/researchers [
         if (course-ticks >= (duration-cc / 2)) and (entre-know-updated-cc? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.05) 10) 2] entrepreneurial-knowledge
+          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.02) 10) 2] entrepreneurial-knowledge
           set entre-know-updated-cc? 1
           set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
-        ]
+             if (ticks - last-motivation-update-tick) > 10 [
+             set motivation min (list (motivation
+                        + (perception-incidence * %perception-of-entrepreneurship)
+                        + (melting-incidence * %melting-pot)
+                        + (corruption-incidence * corruption)
+                        - (burocracy-incidence * %burocracy * (1 + 0.75 * corruption))
+                        + (access-incidence * access-to-credit * (1 - 0.40 * corruption))
+                        + (culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions * (1 - 0.30 * corruption)))) 10)
+            set last-motivation-update-tick ticks
+          ]
+      ]
       ]
     ]
   ]
 end
+
+
+
+
 to check-and-update-entre-know-curricular-event [current-2]
   ask current-2 [
-    if is-agentset? event-students[
-      ask event-students [
-        if (event-ticks >= (duration-ce / 2)) and (entre-know-updated-ce? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.05) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ce? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
-        ]
-      ]
-    ]
-    if is-agentset? event-teachers/researchers[
-      ask event-teachers/researchers [
-        if (event-ticks >= (duration-ce / 2)) and (entre-know-updated-ce? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.05) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ce? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
-        ]
-      ]
-    ]
-    if is-agentset? event-entrepreneurs[
-      ask event-entrepreneurs [
-        if (event-ticks >= (duration-ce / 2)) and (entre-know-updated-ce? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.05) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ce? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
-        ]
-      ]
-    ]
-    if is-agentset? event-investors[
-      ask event-investors [
-        if (event-ticks >= (duration-ce / 2)) and (entre-know-updated-ce? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.05) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ce? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
+
+    let growth-rate 0.05
+    let motivation-increase ((perception-incidence * %perception-of-entrepreneurship)
+                              + (melting-incidence * %melting-pot)
+                              + (corruption-incidence * corruption)
+                              - (burocracy-incidence * %burocracy * (1 + 0.75 * corruption))
+                              + (access-incidence * access-to-credit * (1 - 0.40 * corruption))
+                              + (culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions * (1 - 0.30 * corruption))))
+
+    let agent-groups (list event-students event-teachers/researchers event-entrepreneurs event-investors)
+
+    foreach agent-groups [ group ->
+      if is-agentset? group [
+        ask group [
+          if (event-ticks >= (duration-ce / 2)) and (entre-know-updated-ce? = 0) [
+
+            set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.05) 10) 2] entrepreneurial-knowledge
+
+            set entre-know-updated-ce? 1
+            set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
+
+              if (ticks - last-motivation-update-tick) > 10 [
+              set motivation min (list (motivation + (growth-rate * motivation-increase)) 10)
+              set last-motivation-update-tick ticks
+            ]
+          ]
         ]
       ]
     ]
   ]
 end
+
 to check-and-update-entre-know-extracurricular-course [current-3]
   ask current-3 [
-    if is-agentset? excourse-students[
-      ask excourse-students [
-        if (excourse-ticks >= (duration-ec / 2)) and (entre-know-updated-ec? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.1) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ec? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
-        ]
-      ]
-    ]
-    if is-agentset? excourse-teachers/researchers[
-      ask excourse-teachers/researchers [
-        if (excourse-ticks >= (duration-ec / 2)) and (entre-know-updated-ec? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.1) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ec? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
-        ]
-      ]
-    ]
-    if is-agentset? excourse-entrepreneurs[
-      ask excourse-entrepreneurs [
-        if (excourse-ticks >= (duration-ec / 2)) and (entre-know-updated-ec? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.1) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ec? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
-        ]
-      ]
-    ]
-    if is-agentset? excourse-investors[
-      ask excourse-investors [
-        if (excourse-ticks >= (duration-ec / 2)) and (entre-know-updated-ec? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.1) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ec? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
+
+    let growth-rate 0.05
+    let motivation-increase ((perception-incidence * %perception-of-entrepreneurship)
+                              + (melting-incidence * %melting-pot)
+                              + (corruption-incidence * corruption)
+                              - (burocracy-incidence * %burocracy * (1 + 0.75 * corruption))
+                              + (access-incidence * access-to-credit * (1 - 0.40 * corruption))
+                              + (culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions * (1 - 0.30 * corruption))))
+
+    let agent-groups (list excourse-students excourse-teachers/researchers excourse-entrepreneurs excourse-investors)
+
+    foreach agent-groups [ group ->
+      if is-agentset? group [
+        ask group [
+          if (excourse-ticks >= (duration-ec / 2)) and (entre-know-updated-ec? = 0) [
+
+            let knowledge-increment 0.05
+            set entrepreneurial-knowledge map [[x] -> precision min (list (x + knowledge-increment) 10) 2] entrepreneurial-knowledge
+
+            set entre-know-updated-ec? 1
+            set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
+
+              if (ticks - last-motivation-update-tick) > 10 [
+              set motivation min (list (motivation + (growth-rate * motivation-increase)) 10)
+              set last-motivation-update-tick ticks
+            ]
+          ]
         ]
       ]
     ]
   ]
 end
+
 to check-and-update-entre-know-extracurricular-event [current-4]
   ask current-4 [
-    if is-agentset? exevent-students[
-      ask exevent-students [
-        if (exevent-ticks >= (duration-ee / 2)) and (entre-know-updated-ee? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.05) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ee? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
-        ]
-      ]
-    ]
-    if is-agentset? exevent-teachers/researchers[
-      ask exevent-teachers/researchers [
-        if (exevent-ticks >= (duration-ee / 2)) and (entre-know-updated-ee? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.05) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ee? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
-        ]
-      ]
-    ]
-    if is-agentset? exevent-entrepreneurs[
-      ask exevent-entrepreneurs [
-        if (exevent-ticks >= (duration-ee / 2)) and (entre-know-updated-ee? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.05) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ee? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
-        ]
-      ]
-    ]
-    if is-agentset? exevent-investors[
-      ask exevent-investors [
-        if (exevent-ticks >= (duration-ee / 2)) and (entre-know-updated-ee? = 0) [
-          set entrepreneurial-knowledge map [[x] -> precision min (list (x + 0.05) 10) 2] entrepreneurial-knowledge
-          set entre-know-updated-ee? 1
-          set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
-          set motivation min (list (mean entrepreneurial-knowledge + perception-incidence * %perception-of-entrepreneurship + melting-incidence * %melting-pot + corruption-incidence * corruption - burocracy-incidence * %burocracy - access-incidence * access-to-credit + culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions)) 10)
+
+    let growth-rate 0.05
+    let motivation-increase ((perception-incidence * %perception-of-entrepreneurship)
+                              + (melting-incidence * %melting-pot)
+                              + (corruption-incidence * corruption)
+                              - (burocracy-incidence * %burocracy * (1 + 0.75 * corruption))
+                              + (access-incidence * access-to-credit * (1 - 0.40 * corruption))
+                              + (culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions * (1 - 0.30 * corruption))))
+
+    let agent-groups (list exevent-students exevent-teachers/researchers exevent-entrepreneurs exevent-investors)
+
+    foreach agent-groups [ group ->
+      if is-agentset? group [
+        ask group [
+          if (exevent-ticks >= (duration-ee / 2)) and (entre-know-updated-ee? = 0) [
+
+            let knowledge-increment 0.05
+            set entrepreneurial-knowledge map [[x] -> precision min (list (x + knowledge-increment) 10) 2] entrepreneurial-knowledge
+
+            set entre-know-updated-ee? 1
+            set mean-entrepreneurial-knowledge mean entrepreneurial-knowledge
+
+            if (ticks - last-motivation-update-tick) > 10 [
+              set motivation min (list (motivation + (growth-rate * motivation-increase)) 10)
+              set last-motivation-update-tick ticks
+            ]
+          ]
         ]
       ]
     ]
   ]
 end
+
 to-report is-in-aura? [current-1]
   ifelse current-1 != nobody [
     report (xcor >= [xcor] of current-1 - half-side and
@@ -2297,60 +2375,142 @@ to-report is-in-aura? [current-1]
   ]
 end
 to replace-entrepreneurial-individuals
-;  ;; Calcola la media della conoscenza imprenditoriale degli imprenditori sotto la media
-;  set mean-ecosystem-entrepreneurial-knowledge mean [mean-entrepreneurial-knowledge] of individuals with [
-;    species = "entrepreneur" and
-;    mean-entrepreneurial-knowledge < mean [mean-entrepreneurial-knowledge] of individuals with [species = "entrepreneur"]
-;  ]
+  ;; Calcola la motivation media
+  let mean-motiv-students mean [motivation] of individuals with [species = "student"]
+  let mean-motiv-teachers/researchers mean [motivation] of individuals with [species = "teacher/researcher"]
 
-  ;show mean-ecosystem-entrepreneurial-knowledge
-
-  ;; Seleziona gli studenti con conoscenza imprenditoriale sopra la soglia
+  ;; Seleziona gli studenti e i docenti con sufficiente conoscenza imprenditoriale
   let students-entrepreneurs individuals with [
     species = "student" and
-    mean-entrepreneurial-knowledge > mean-ecosystem-entrepreneurial-knowledge
+    mean-entrepreneurial-knowledge >= (mean-ecosystem-entrepreneurial-knowledge * 0.9)
   ]
   let teachers-entrepreneurs individuals with [
     species = "teacher/researcher" and
-    mean-entrepreneurial-knowledge > mean-ecosystem-entrepreneurial-knowledge
+    mean-entrepreneurial-knowledge >= (mean-ecosystem-entrepreneurial-knowledge )
   ]
 
-  ;show count students-entrepreneurs
-  ;show count teachers-entrepreneurs
+  ;; Definizione delle probabilità di transizione per studenti e docenti (VALORI ORIGINALI)
+  let transition-probability-students (0.008
+      + 0.015 * perception-incidence * %perception-of-entrepreneurship * (1 - 0.20 * corruption)
+      + 0.015 * melting-incidence * %melting-pot
+      + 0.015 * corruption-incidence * corruption
+      - 0.015 * burocracy-incidence * %burocracy * (1 + 0.75 * corruption)
+      + 0.015 * access-incidence * access-to-credit * (1 - 0.40 * corruption)
+      + 0.015 * culture-incidence * (0.3 * mean [entrepreneurial-culture] of institutions * (1 - 0.30 * corruption))
+      + 0.002 * mean-motiv-students)
 
-  ;; Definisce la probabilità individuale di transizione
-  let transition-probability-students (0.008 + 0.015 * perception-incidence * %perception-of-entrepreneurship + 0.015 * melting-incidence * %melting-pot + 0.015 * corruption-incidence * corruption - 0.015 * burocracy-incidence * %burocracy - 0.015 * access-incidence * access-to-credit + 0.015 * culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
-  ;show transition-probability-students
-  let transition-probability-teachers (0.004 + 0.015 * perception-incidence * %perception-of-entrepreneurship + 0.015 * melting-incidence * %melting-pot + 0.015 * corruption-incidence * corruption - 0.015 * burocracy-incidence * %burocracy - 0.015 * access-incidence * access-to-credit + 0.015 * culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions))
-  ;show transition-probability-teachers
-  ;show individuals with [species = "entrepreneur"]
-  ;show individuals with [species = "teacher/researcher"]
+  let transition-probability-teachers (0.001
+      + 0.015 * perception-incidence * %perception-of-entrepreneurship * (1 - 0.20 * corruption)
+      + 0.015 * melting-incidence * %melting-pot
+      + 0.015 * corruption-incidence * corruption
+      - 0.015 * burocracy-incidence * %burocracy * (1 + 0.75 * corruption)
+      + 0.015 * access-incidence * access-to-credit * (1 - 0.40 * corruption)
+      + 0.015 * culture-incidence * (0.1 * mean [entrepreneurial-culture] of institutions * (1 - 0.30 * corruption))
+      + 0.002 * mean-motiv-teachers/researchers)
 
-  ;; Assegna a ogni studente una possibilità di diventare imprenditore
+  ;; Assicuriamoci che le probabilità rimangano tra 0 e 1
+  set transition-probability-students min list transition-probability-students 1
+  set transition-probability-teachers min list transition-probability-teachers 1
+
+  ;; Esegui la transizione per gli studenti
   ask students-entrepreneurs [
-    if random-float 1 < transition-probability-students [
+    let rand random-float 1
+    show (word "Tick: " ticks " - Student: " self " - Random: " rand " - Prob: " transition-probability-students)
+    if rand < transition-probability-students [
       set species "entrepreneur"
       set color blue
       set shape "person business"
+      show (word "Student " self " è diventato imprenditore!")
     ]
   ]
+
+  ;; Esegui la transizione per i docenti/ricercatori
   ask teachers-entrepreneurs [
-    if random-float 1 < transition-probability-teachers [
+    let rand random-float 1
+    show (word "Tick: " ticks " - Teacher: " self " - Random: " rand " - Prob: " transition-probability-teachers)
+    if rand < transition-probability-teachers [
       set species "entrepreneur"
       set color blue
       set shape "person business"
+      show (word "Teacher " self " è diventato imprenditore!")
     ]
   ]
+end
+
+
+;
+;to log-motivation
+;  set motivation-history-students (list mean [motivation] of individuals with [species = "student"])
+;  set motivation-history-teachers (list mean [motivation] of individuals with [species = "teacher/researcher"])
+;  set motivation-history-entrepreneurs (list mean [motivation] of individuals with [species = "entrepreneur"])
+;  set motivation-history-investors (list mean [motivation] of individuals with [species = "business angel"])
+;  set entrepreneurs-history (list count individuals with [species = "entrepreneur"])
+;end
+;
+to-report mean-motivation
+  report mean [motivation] of individuals
+end
+
+to-report mean-motivation-students
+  report precision mean [motivation] of individuals with [species = "student"] 2
+end
+
+to-report mean-motivation-teachers
+  report precision mean [motivation] of individuals with [species = "teacher/researcher"] 2
+end
+
+to-report mean-motivation-entrepreneurs
+  report precision mean [motivation] of individuals with [species = "entrepreneur"] 2
+end
+
+to-report mean-motivation-investors
+  report precision mean [motivation] of individuals with [species = "business angel"] 2
+end
+
+to-report count-entrepreneurs
+  report count individuals with [species = "entrepreneur"]
+end
+
+to-report count-students
+  report count individuals with [species = "student"]
+end
+
+to-report count-teachers
+  report count individuals with [species = "teacher/researcher"]
+end
+
+;to-report motivation-history-students-report
+;  report motivation-history-students
+;end
+;
+;to-report motivation-history-teachers-report
+;  report motivation-history-teachers
+;end
+;
+;to-report motivation-history-entrepreneurs-report
+;  report motivation-history-entrepreneurs
+;end
+;
+;to-report motivation-history-investors-report
+;  report motivation-history-investors
+;end
+;
+;to-report entrepreneurs-history-report
+;  report entrepreneurs-history
+;end
+
+to-report current-ticks
+  report ticks
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 197
 14
-815
-633
+1005
+823
 -1
 -1
-9.385
+12.31
 1
 10
 1
@@ -2426,7 +2586,7 @@ students
 students
 10
 1000
-200.0
+300.0
 1
 1
 NIL
@@ -2471,7 +2631,7 @@ entrepreneurs
 entrepreneurs
 10
 800
-100.0
+150.0
 1
 1
 NIL
@@ -2510,10 +2670,10 @@ NIL
 1
 
 PLOT
-824
-15
-1159
-245
+1020
+19
+1355
+249
 ENTREPRENEURIAL KNOWLEDGE
 time
 entrepreneurial-knowledge
@@ -2531,10 +2691,10 @@ PENS
 "Business Angels" 1.0 0 -6459832 true "" "plot mean [mean entrepreneurial-knowledge] of individuals with [species = \"business angel\"]"
 
 MONITOR
-825
-478
-922
-523
+1021
+482
+1118
+527
 course-ticks - 0
 [course-ticks] of institution 0
 17
@@ -2542,10 +2702,10 @@ course-ticks - 0
 11
 
 MONITOR
-928
-478
-1025
-523
+1124
+482
+1221
+527
 course-ticks-1
 [course-ticks] of institution 1
 17
@@ -2553,10 +2713,10 @@ course-ticks-1
 11
 
 MONITOR
-1238
-574
-1335
-619
+1434
+578
+1531
+623
 excourse-ticks-4
 [excourse-ticks] of institution 4
 17
@@ -2564,10 +2724,10 @@ excourse-ticks-4
 11
 
 MONITOR
-1031
-478
-1128
-523
+1227
+482
+1324
+527
 course-ticks-2
 [course-ticks] of institution 2
 17
@@ -2575,10 +2735,10 @@ course-ticks-2
 11
 
 MONITOR
-824
-573
-922
-618
+1020
+577
+1118
+622
 excourse-ticks-0
 [excourse-ticks] of institution 0
 17
@@ -2586,10 +2746,10 @@ excourse-ticks-0
 11
 
 MONITOR
-927
-574
-1025
-619
+1123
+578
+1221
+623
 excourse-ticks-1
 [excourse-ticks] of institution 1
 17
@@ -2597,10 +2757,10 @@ excourse-ticks-1
 11
 
 MONITOR
-1031
-574
-1129
-619
+1227
+578
+1325
+623
 excourse-ticks-2
 [excourse-ticks] of institution 2
 17
@@ -2608,10 +2768,10 @@ excourse-ticks-2
 11
 
 MONITOR
-1136
-574
-1232
-619
+1332
+578
+1428
+623
 excourse-ticks-3
 [excourse-ticks] of institution 3
 17
@@ -2619,10 +2779,10 @@ excourse-ticks-3
 11
 
 MONITOR
-1341
-574
-1437
-619
+1537
+578
+1633
+623
 excourse-ticks-5
 [excourse-ticks] of institution 5
 17
@@ -2630,10 +2790,10 @@ excourse-ticks-5
 11
 
 MONITOR
-825
-526
-922
-571
+1021
+530
+1118
+575
 event-ticks-0
 [event-ticks] of institution 0
 17
@@ -2641,10 +2801,10 @@ event-ticks-0
 11
 
 MONITOR
-928
-526
-1025
-571
+1124
+530
+1221
+575
 event-ticks-1
 [event-ticks] of institution 1
 17
@@ -2652,10 +2812,10 @@ event-ticks-1
 11
 
 MONITOR
-1031
-526
-1128
-571
+1227
+530
+1324
+575
 event-ticks-2
 [event-ticks] of institution 2
 17
@@ -2663,10 +2823,10 @@ event-ticks-2
 11
 
 PLOT
-824
-248
-1306
-464
+1020
+252
+1502
+468
 ENTREPRENEURIAL CULTURE
 time
 entrepreneurial-culture
@@ -2709,7 +2869,7 @@ corruption
 corruption
 0
 1
-0.2
+0.5
 0.05
 1
 NIL
@@ -2724,7 +2884,7 @@ SLIDER
 %burocracy
 0
 1
-0.138
+0.535
 0.001
 1
 NIL
@@ -2739,7 +2899,7 @@ SLIDER
 %perception-of-entrepreneurship
 0
 1
-0.35
+0.5
 0.05
 1
 NIL
@@ -2754,7 +2914,7 @@ SLIDER
 %melting-pot
 0
 1
-0.05
+0.73
 0.01
 1
 NIL
@@ -2769,17 +2929,17 @@ access-to-credit
 access-to-credit
 0
 1
-0.045
+0.382
 0.001
 1
 NIL
 HORIZONTAL
 
 PLOT
-1162
-15
-1476
-245
+1015
+477
+1636
+707
 MOTIVATION
 time
 motivation
@@ -3299,7 +3459,7 @@ NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="3E experiment 10" repetitions="1" runMetricsEveryStep="true">
+  <experiment name="(Fernando) 3E experiment 10" repetitions="1" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="300"/>
@@ -3415,7 +3575,7 @@ NetLogo 6.4.0
       <value value="0.5"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="3E Experiment 1" repetitions="1" runMetricsEveryStep="true">
+  <experiment name="(Fernando) 3E Experiment 1" repetitions="1" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="300"/>
@@ -3519,7 +3679,7 @@ NetLogo 6.4.0
       <value value="0.5"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="3E Experiment 2" repetitions="1" sequentialRunOrder="false" runMetricsEveryStep="true">
+  <experiment name="(Fernando) 3E Experiment 2" repetitions="1" sequentialRunOrder="false" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="300"/>
@@ -3617,7 +3777,7 @@ NetLogo 6.4.0
       <value value="0.6"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="Experiment-corruption" repetitions="5" runMetricsEveryStep="true">
+  <experiment name="(Fernando) Experiment-corruption" repetitions="5" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="400"/>
@@ -3672,7 +3832,7 @@ NetLogo 6.4.0
       <value value="0.045"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="Experiment-burocracy" repetitions="5" runMetricsEveryStep="true">
+  <experiment name="(Fernando) Experiment-burocracy" repetitions="5" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="400"/>
@@ -3727,7 +3887,7 @@ NetLogo 6.4.0
       <value value="0.045"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="Experiment-perception" repetitions="5" runMetricsEveryStep="true">
+  <experiment name="(Fernando) Experiment-perception" repetitions="5" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="400"/>
@@ -3782,7 +3942,7 @@ NetLogo 6.4.0
       <value value="0.045"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="Experiment-meltingpot" repetitions="5" runMetricsEveryStep="true">
+  <experiment name="(Fernando) Experiment-meltingpot" repetitions="5" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="400"/>
@@ -3837,7 +3997,7 @@ NetLogo 6.4.0
       <value value="0.045"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="Experiment-accesstocredit" repetitions="5" runMetricsEveryStep="true">
+  <experiment name="(Fernando) Experiment-accesstocredit" repetitions="5" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="400"/>
@@ -3890,6 +4050,410 @@ NetLogo 6.4.0
       <value value="0.045"/>
       <value value="0.055"/>
       <value value="0.065"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Experiment 2 - Corruption" repetitions="5" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>mean-motivation</metric>
+    <metric>mean-motivation-students</metric>
+    <metric>mean-motivation-teachers</metric>
+    <metric>mean-motivation-entrepreneurs</metric>
+    <metric>mean-motivation-investors</metric>
+    <metric>count-entrepreneurs</metric>
+    <metric>current-ticks</metric>
+    <enumeratedValueSet variable="%melting-pot">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="policy-makers">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="students">
+      <value value="300"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%burocracy">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="universities">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%perception-of-entrepreneurship">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="access-to-credit">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="teachers/researchers">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="entrepreneurs">
+      <value value="150"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="corruption">
+      <value value="0.2"/>
+      <value value="0.4"/>
+      <value value="0.6"/>
+      <value value="0.8"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="incubators/accelerators">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="investors">
+      <value value="23"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Best Scenario - Experiment 1" repetitions="15" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="300"/>
+    <metric>mean-motivation</metric>
+    <metric>mean-motivation-students</metric>
+    <metric>mean-motivation-teachers</metric>
+    <metric>mean-motivation-entrepreneurs</metric>
+    <metric>mean-motivation-investors</metric>
+    <metric>count-entrepreneurs</metric>
+    <metric>current-ticks</metric>
+    <enumeratedValueSet variable="%melting-pot">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="policy-makers">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="students">
+      <value value="300"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%burocracy">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="universities">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="access-to-credit">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%perception-of-entrepreneurship">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="teachers/researchers">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="entrepreneurs">
+      <value value="150"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="corruption">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="incubators/accelerators">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="investors">
+      <value value="23"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Worst Scenario - Experimenti 1" repetitions="15" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="500"/>
+    <metric>mean-motivation</metric>
+    <metric>mean-motivation-students</metric>
+    <metric>mean-motivation-teachers</metric>
+    <metric>mean-motivation-entrepreneurs</metric>
+    <metric>mean-motivation-investors</metric>
+    <metric>count-entrepreneurs</metric>
+    <metric>current-ticks</metric>
+    <enumeratedValueSet variable="%melting-pot">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="policy-makers">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="students">
+      <value value="300"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%burocracy">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="universities">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%perception-of-entrepreneurship">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="access-to-credit">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="entrepreneurs">
+      <value value="150"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="teachers/researchers">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="corruption">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="incubators/accelerators">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="investors">
+      <value value="23"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Realistic Scenario - Experiment 1" repetitions="15" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="300"/>
+    <metric>mean-motivation</metric>
+    <metric>mean-motivation-students</metric>
+    <metric>mean-motivation-teachers</metric>
+    <metric>mean-motivation-entrepreneurs</metric>
+    <metric>mean-motivation-investors</metric>
+    <metric>count-entrepreneurs</metric>
+    <metric>current-ticks</metric>
+    <enumeratedValueSet variable="%melting-pot">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="policy-makers">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="students">
+      <value value="300"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%burocracy">
+      <value value="0.47"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="universities">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="access-to-credit">
+      <value value="0.52"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%perception-of-entrepreneurship">
+      <value value="0.53"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="teachers/researchers">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="entrepreneurs">
+      <value value="150"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="corruption">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="incubators/accelerators">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="investors">
+      <value value="23"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Experiment 2 - Burocracy" repetitions="5" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>mean-motivation</metric>
+    <metric>mean-motivation-students</metric>
+    <metric>mean-motivation-teachers</metric>
+    <metric>mean-motivation-entrepreneurs</metric>
+    <metric>mean-motivation-investors</metric>
+    <metric>count-entrepreneurs</metric>
+    <metric>current-ticks</metric>
+    <enumeratedValueSet variable="%melting-pot">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="policy-makers">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="students">
+      <value value="300"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%burocracy">
+      <value value="0.2"/>
+      <value value="0.4"/>
+      <value value="0.6"/>
+      <value value="0.8"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="universities">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%perception-of-entrepreneurship">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="access-to-credit">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="teachers/researchers">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="entrepreneurs">
+      <value value="150"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="corruption">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="incubators/accelerators">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="investors">
+      <value value="23"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Experiment 2 - Perception Of Entrepreneurship" repetitions="5" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>mean-motivation</metric>
+    <metric>mean-motivation-students</metric>
+    <metric>mean-motivation-teachers</metric>
+    <metric>mean-motivation-entrepreneurs</metric>
+    <metric>mean-motivation-investors</metric>
+    <metric>count-entrepreneurs</metric>
+    <metric>current-ticks</metric>
+    <enumeratedValueSet variable="%melting-pot">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="policy-makers">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="students">
+      <value value="300"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%burocracy">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="universities">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%perception-of-entrepreneurship">
+      <value value="0.2"/>
+      <value value="0.4"/>
+      <value value="0.6"/>
+      <value value="0.8"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="access-to-credit">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="teachers/researchers">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="entrepreneurs">
+      <value value="150"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="corruption">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="incubators/accelerators">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="investors">
+      <value value="23"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Experiment 2 - Melting Pot" repetitions="5" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>mean-motivation</metric>
+    <metric>mean-motivation-students</metric>
+    <metric>mean-motivation-teachers</metric>
+    <metric>mean-motivation-entrepreneurs</metric>
+    <metric>mean-motivation-investors</metric>
+    <metric>count-entrepreneurs</metric>
+    <metric>current-ticks</metric>
+    <enumeratedValueSet variable="%melting-pot">
+      <value value="0.2"/>
+      <value value="0.4"/>
+      <value value="0.6"/>
+      <value value="0.8"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="policy-makers">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="students">
+      <value value="300"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%burocracy">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="universities">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%perception-of-entrepreneurship">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="access-to-credit">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="entrepreneurs">
+      <value value="150"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="teachers/researchers">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="corruption">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="incubators/accelerators">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="investors">
+      <value value="23"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="Experiment 2 - Access To Credit" repetitions="5" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="250"/>
+    <metric>mean-motivation</metric>
+    <metric>mean-motivation-students</metric>
+    <metric>mean-motivation-teachers</metric>
+    <metric>mean-motivation-entrepreneurs</metric>
+    <metric>mean-motivation-investors</metric>
+    <metric>count-entrepreneurs</metric>
+    <metric>current-ticks</metric>
+    <enumeratedValueSet variable="%melting-pot">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="policy-makers">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="students">
+      <value value="300"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%burocracy">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="universities">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="access-to-credit">
+      <value value="0.2"/>
+      <value value="0.4"/>
+      <value value="0.6"/>
+      <value value="0.8"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="%perception-of-entrepreneurship">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="teachers/researchers">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="entrepreneurs">
+      <value value="150"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="corruption">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="incubators/accelerators">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="investors">
+      <value value="23"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
